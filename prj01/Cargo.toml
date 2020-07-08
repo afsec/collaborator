@@ -5,6 +5,7 @@ authors = ['Antonio Feitosa <antonio.cfc@gmail.com>']
 edition = '2018'
 
 [dependencies]
+chrono = "0.4.13"
 # async-h1 = "2.1.0"
 # http-types = "2.2.1"
 
