@@ -16,7 +16,11 @@ async fn main() -> io::Result<()> {
     // Open up a TCP connection and create a URL.
     let listener = TcpListener::bind(("0.0.0.0", 8000)).await?;
     let addr = format!("http://{}", listener.local_addr()?);
-    println!("listening on {}", addr);
+    println!(
+        "Listening on {addr}. (Request size =< {max_size} MBytes)",
+        addr = addr,
+        max_size = (MAX_BYTES / 1024) / 1024
+    );
 
     // For each incoming TCP connection, spawn a task and call `accept`.
     let mut incoming = listener.incoming();
@@ -34,17 +38,19 @@ async fn main() -> io::Result<()> {
 // Take a TCP stream, and convert it into sequential HTTP request / response pairs.
 async fn accept(mut stream: TcpStream) -> io::Result<()> {
     let start = Instant::now();
+    let now: DateTime<Utc> = Utc::now();
     let mut buf = vec![0u8; MAX_BYTES];
     let recv_length = stream.read(&mut buf).await?;
     let mut recv_data = String::new();
+
     for c in buf {
-        if c > 1 {
+        if c > 0 {
             recv_data.push(c as char);
         }
     }
-    let now: DateTime<Utc> = Utc::now();
 
-    let body = format!(r#"<!DOCTYPE html>
+    let body = format!(
+        r#"<!DOCTYPE html>
 <html>
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
@@ -53,30 +59,33 @@ async fn accept(mut stream: TcpStream) -> io::Result<()> {
     <body>
         <h1>Directory listing for /</h1>
         <hr>
-        <p>{}</p>
+        <p>{now}</p>
     </body>
-</html>"#,now);
+</html>"#,
+        now = now
+    );
+    let proto_status = "HTTP/1.0 200 OK\r\n".to_string();
+    let headers = format!("Server: nginx\r\nDate: {now}\r\nContent-type: text/html; charset=utf-8\r\nContent-Length: {body_len}\r\n\r\n", now = now,body_len = body.len());
+    let response = format!(
+        "{proto_status}{headers}{body}",
+        proto_status = proto_status,
+        headers = headers,
+        body = body
+    );
 
-    let now: DateTime<Utc> = Utc::now();
-    let headers = format!("HTTP/1.0 200 OK\r\nServer: nginx\r\nDate: {now}\r\nContent-type: text/html; charset=utf-8\r\nContent-Length: {body_len}\r\n\r\n", now=now,body_len=body.len());
-    let response = format!("{}{}", headers, body);
-
-    stream
-        // .write_all(include_bytes!("../../response-edited.raw"))
-        .write_all(response.as_bytes())
-        .await?;
+    stream.write_all(response.as_bytes()).await?;
     let duration = start.elapsed();
 
     println!(
-        "-------[ {} -> {} ({} Bytes - elapsed {:?} ]-------",
-        stream.peer_addr()?,
-        stream.local_addr()?,
-        recv_length,
-        duration,
+        "-------[ {now}: {remote} -> {local} ({bytes_received} Bytes - elapsed {elapsed:?}) ]-------",
+        now=now.to_rfc3339(),
+        remote=stream.peer_addr()?,
+        local=stream.local_addr()?,
+        bytes_received=recv_length,
+        elapsed=duration,
     );
     // TODO: Create Struct and Store recv_data into File or Database
     println!("{}", recv_data);
-    println!("{}", response);
-    println!();
+    // println!("{}", response);
     Ok(())
 }

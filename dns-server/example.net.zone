@@ -1,0 +1,16 @@
+@   IN          SOA     example.net. root.example.net. (
+                                2020070901 ; Serial
+                                28800       ; Refresh
+                                7200        ; Retry
+                                604800      ; Expire
+                                86400      ; Minimum TTL
+)
+
+                NS      ns
+
+ns             A       127.0.0.1
+
+
+;*.collaborator      CNAME   www
+*.collaborator      A   127.0.0.1
+

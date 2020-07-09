@@ -1,0 +1,9 @@
+listen_addrs_ipv4 = ["0.0.0.0"]
+listen_port = 8053
+
+directory = "./"
+
+[[zones]]
+zone = "example.net"
+zone_type = "Primary"
+file = "example.net.zone"
